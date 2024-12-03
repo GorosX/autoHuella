@@ -1,35 +1,33 @@
 #!/bin/bash
 
-sudo apt-get update
-sudo apt-get install inotify-tools -y
+# URL del servidor
+URL="http://10.11.0.130"
 
-# Configuración interactiva
-read -p "Ingresa la URL del servidor HTTP (por ejemplo, http://10.11.0.130/): " SERVER_URL
-read -p "Ingresa la ruta del directorio destino en Debian (por ejemplo, /home/usuario/descargas): " DEST_DIR
+# Archivo temporal para almacenar el índice actual
+TEMP_FILE="/tmp/server_index.txt"
+PREVIOUS_FILE="/tmp/previous_index.txt"
 
-# Crear directorio destino si no existe
-mkdir -p "$DEST_DIR"
+# Función para obtener el listado de archivos
+function get_file_list() {
+    curl -s "$URL" | grep -oP '(?<=href=")[^"]*' | grep -v '/$'
+}
 
-# Monitorear y descargar nuevos archivos
-echo "Monitoreando nuevos archivos en el servidor $SERVER_URL ..."
-while true; do
-    # Obtener la lista de archivos del servidor
-    FILES=$(wget -q -O - "$SERVER_URL" | grep -oP '(?<=href=")[^"]*' | grep -v '/$')
+# Guardar el índice anterior
+if [ -f "$TEMP_FILE" ]; then
+    mv "$TEMP_FILE" "$PREVIOUS_FILE"
+else
+    touch "$PREVIOUS_FILE"
+fi
 
-    for FILE in $FILES; do
-        # Comprobar si el archivo ya existe en el destino
-        if [[ ! -f "$DEST_DIR/$FILE" ]]; then
-            echo "Nuevo archivo detectado: $FILE"
-            wget -q -O "$DEST_DIR/$FILE" "$SERVER_URL/$FILE"
+# Obtener el índice actual y guardarlo
+get_file_list > "$TEMP_FILE"
 
-            if [[ $? -eq 0 ]]; then
-                echo "Archivo descargado correctamente: $DEST_DIR/$FILE"
-            else
-                echo "Error al descargar el archivo: $FILE"
-            fi
-        fi
-    done
+# Comparar índices para detectar nuevos archivos
+NEW_FILES=$(comm -13 "$PREVIOUS_FILE" "$TEMP_FILE")
 
-    # Pausa de 5 segundos antes de verificar nuevamente
-    sleep 5
-done
+if [ -n "$NEW_FILES" ]; then
+    echo "Se han subido nuevos archivos:"
+    echo "$NEW_FILES"
+else
+    echo "No se han detectado nuevos archivos."
+fi
