@@ -1,11 +1,20 @@
 #!/bin/bash
 
-# Configuración
-URL="http://tu-servidor.com/uploads/" # URL del directorio de archivos
+# Solicitar la URL del servidor
+read -p "Introduce la dirección del servidor (por ejemplo, 192.168.1.100): " SERVER_IP
 
-# Descargar listado de archivos al directorio actual
-echo "Obteniendo y descargando archivos desde $URL..."
+# Construir la URL completa con el puerto 8080
+URL="http://$SERVER_IP:8080/"
+
+# Confirmación de la URL
+echo "Conectando al servidor en $URL..."
+
+# Descargar archivos al directorio actual
 wget -q -r -np -nd -A '*' "$URL"
 
-# Confirmación
-echo "Descarga completada. Los archivos se guardaron en el directorio actual."
+# Verificar si la descarga fue exitosa
+if [ $? -eq 0 ]; then
+    echo "Descarga completada. Los archivos se guardaron en el directorio actual."
+else
+    echo "Ocurrió un error durante la descarga. Verifica la URL o la conectividad."
+fi
