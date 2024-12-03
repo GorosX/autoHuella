@@ -6,15 +6,30 @@ read -p "Introduce la dirección del servidor (por ejemplo, 192.168.1.100): " SE
 # Construir la URL completa con el puerto 8080
 URL="http://$SERVER_IP:8080/"
 
-# Confirmación de la URL
-echo "Conectando al servidor en $URL..."
+# Intervalo de verificación (en segundos)
+INTERVALO=10
 
-# Descargar archivos al directorio actual
-wget -q -r -np -nd -A '*' "$URL"
+# Crear el archivo de registro de archivos descargados
+REGISTRO=".descargados_simple.txt"
+touch "$REGISTRO"
 
-# Verificar si la descarga fue exitosa
-if [ $? -eq 0 ]; then
-    echo "Descarga completada. Los archivos se guardaron en el directorio actual."
-else
-    echo "Ocurrió un error durante la descarga. Verifica la URL o la conectividad."
-fi
+echo "Monitoreando $URL para detectar archivos nuevos..."
+
+# Ciclo infinito para monitorear archivos nuevos
+while true; do
+    # Obtener listado de archivos en el servidor
+    wget -q -O - "$URL" | grep -oP '(?<=href=")[^"]*' > .archivos.txt
+
+    # Procesar cada archivo encontrado
+    while read -r ARCHIVO; do
+        # Si el archivo no está en el registro, se descarga
+        if ! grep -qx "$ARCHIVO" "$REGISTRO"; then
+            echo "Descargando archivo nuevo: $ARCHIVO"
+            wget -q "$URL$ARCHIVO" -O "$ARCHIVO"
+            echo "$ARCHIVO" >> "$REGISTRO"
+        fi
+    done < .archivos.txt
+
+    # Esperar antes de la siguiente verificación
+    sleep "$INTERVALO"
+done
